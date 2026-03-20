@@ -1,98 +1,93 @@
 import java.util.*;
 
 /**
- * UC6: Reservation Confirmation & Room Allocation
- * Demonstrates safe allocation, inventory update, and prevention of double booking.
+ * UC7: Add-On Service Selection
+ * Demonstrates extension of booking with optional services
+ * without modifying core booking logic.
  *
  * @author Chaitanya
  * @version 1.0
  */
 
-// Reservation (Request)
-class Reservation {
-    private String guestName;
-    private String roomType;
+// Add-On Service (Domain)
+class AddOnService {
 
-    public Reservation(String guestName, String roomType) {
+    private String name;
+    private double price;
+
+    public AddOnService(String name, double price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void display() {
+        System.out.println(name + " - ₹" + price);
+    }
+}
+
+// Reservation (Core Booking Reference)
+class Reservation {
+
+    private String reservationId;
+    private String guestName;
+
+    public Reservation(String reservationId, String guestName) {
+        this.reservationId = reservationId;
         this.guestName = guestName;
-        this.roomType = roomType;
+    }
+
+    public String getReservationId() {
+        return reservationId;
     }
 
     public String getGuestName() {
         return guestName;
     }
-
-    public String getRoomType() {
-        return roomType;
-    }
 }
 
-// Inventory Service
-class InventoryService {
+// Add-On Service Manager
+class AddOnServiceManager {
 
-    private Map<String, Integer> inventory = new HashMap<>();
+    // Map reservation ID → list of services
+    private Map<String, List<AddOnService>> serviceMap = new HashMap<>();
 
-    public void addRoomType(String type, int count) {
-        inventory.put(type, count);
+    // Add service
+    public void addService(String reservationId, AddOnService service) {
+
+        serviceMap.putIfAbsent(reservationId, new ArrayList<>());
+        serviceMap.get(reservationId).add(service);
+
+        System.out.println("Added service: " + service.getName());
     }
 
-    public int getAvailability(String type) {
-        return inventory.getOrDefault(type, 0);
-    }
+    // Display services + cost
+    public void displayServices(String reservationId) {
 
-    public void decrement(String type) {
-        inventory.put(type, inventory.get(type) - 1);
-    }
-}
+        List<AddOnService> services = serviceMap.get(reservationId);
 
-// Booking Service (Allocation)
-class BookingService {
-
-    private Set<String> allocatedRoomIds = new HashSet<>();
-
-    // Generate unique room ID
-    private String generateRoomId(String roomType) {
-        return roomType.replace(" ", "").substring(0, 3).toUpperCase()
-                + "_" + UUID.randomUUID().toString().substring(0, 5);
-    }
-
-    // Process queue
-    public void processBookings(Queue<Reservation> queue, InventoryService inventory) {
-
-        System.out.println("=== Processing Reservations ===\n");
-
-        while (!queue.isEmpty()) {
-
-            Reservation request = queue.poll(); // dequeue
-            String type = request.getRoomType();
-
-            System.out.println("Processing: " + request.getGuestName());
-
-            // Check availability
-            if (inventory.getAvailability(type) > 0) {
-
-                // Generate unique room ID
-                String roomId = generateRoomId(type);
-
-                // Prevent duplicate allocation
-                if (!allocatedRoomIds.contains(roomId)) {
-
-                    allocatedRoomIds.add(roomId);
-
-                    // Decrement inventory immediately
-                    inventory.decrement(type);
-
-                    // Confirm booking
-                    System.out.println("✅ Confirmed for " + request.getGuestName());
-                    System.out.println("Room Type: " + type);
-                    System.out.println("Room ID: " + roomId + "\n");
-
-                }
-
-            } else {
-                System.out.println("❌ No rooms available for " + type + "\n");
-            }
+        if (services == null || services.isEmpty()) {
+            System.out.println("No add-on services selected.");
+            return;
         }
+
+        double total = 0;
+
+        System.out.println("\n=== Add-On Services ===");
+
+        for (AddOnService s : services) {
+            s.display();
+            total += s.getPrice();
+        }
+
+        System.out.println("Total Add-On Cost: ₹" + total);
     }
 }
 
@@ -101,22 +96,18 @@ public class BookMyStayApp {
 
     public static void main(String[] args) {
 
-        // Initialize inventory
-        InventoryService inventory = new InventoryService();
-        inventory.addRoomType("Single Room", 2);
-        inventory.addRoomType("Double Room", 1);
-        inventory.addRoomType("Suite Room", 0);
+        // Existing reservation (from UC6)
+        Reservation reservation = new Reservation("RES123", "Chaitanya");
 
-        // Booking request queue (FIFO)
-        Queue<Reservation> queue = new LinkedList<>();
+        // Add-on manager
+        AddOnServiceManager manager = new AddOnServiceManager();
 
-        queue.add(new Reservation("Chaitanya", "Single Room"));
-        queue.add(new Reservation("Rahul", "Single Room"));
-        queue.add(new Reservation("Ankit", "Single Room")); // exceeds availability
-        queue.add(new Reservation("Neha", "Suite Room"));   // no availability
+        // Guest selects services
+        manager.addService(reservation.getReservationId(), new AddOnService("Breakfast", 500));
+        manager.addService(reservation.getReservationId(), new AddOnService("Airport Pickup", 1200));
+        manager.addService(reservation.getReservationId(), new AddOnService("Extra Bed", 800));
 
-        // Process bookings
-        BookingService service = new BookingService();
-        service.processBookings(queue, inventory);
+        // Display selected services
+        manager.displayServices(reservation.getReservationId());
     }
 }
